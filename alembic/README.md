@@ -1,11 +1,16 @@
+1. Create migration
 
-1. Apply migration
+```
+alembic revision --autogenerate -m "create conversation_thread and messages tables"
+```
+
+2. Apply migration
 
 ```
 alembic upgrade head
 ```
 
-2. Common Alembic commands
+3. Common Alembic commands
 
 ```
 alembic current
