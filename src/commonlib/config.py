@@ -1,6 +1,7 @@
 import logging
 
-from pydantic import field_validator, model_validator
+from urllib.parse import quote_plus
+from pydantic import field_validator, model_validator, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,6 +28,18 @@ class Settings(BaseSettings):
     SUMMERIZATION_MIDDLEWARE_LIMIT: float = 0.7
     # Data staging limits
     MAX_DOCUMENTS_STAGING_LIMIT: int = 10
+
+    # database
+    DATABASE_USERNAME: str
+    DATABASE_PASSWORD: str
+    DATABASE_NAME: str
+    DATABASE_HOST: str
+    DATABASE_PORT: int = 5432
+
+    @computed_field
+    def db_url(self) -> str:
+        password = quote_plus(self.DATABASE_PASSWORD)
+        return f"postgresql+psycopg://{self.DATABASE_USERNAME}:{password}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
 
     @field_validator("DEBUG", mode="before")
     @classmethod
