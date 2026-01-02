@@ -11,8 +11,6 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     LOGGING_LEVEL: int = logging.INFO
 
-    # authentication
-    SECRET_KEY: str
     # cors middleware
     FRONTEND_URL: str
 
