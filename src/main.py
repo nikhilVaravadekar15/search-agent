@@ -6,6 +6,7 @@ from src.commonlib import types as common_types
 from src.commonlib.config import settings
 from src.commonlib.logger import search_logger
 from src.health_check.router import router as health_check_router_v1
+from src.search.router import router as search_router_v1
 
 app = FastAPI()
 app.add_middleware(
@@ -53,5 +54,6 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(health_check_router_v1, prefix="/api/v1")
+app.include_router(search_router_v1, prefix="/api/v1")
 
 search_logger.info("Application started")
