@@ -9,10 +9,10 @@ Create Date: 2026-01-02 16:43:21.786871
 import uuid
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "20e5c9ad9ae0"
@@ -74,10 +74,8 @@ def upgrade() -> None:
         ),
         sa.Column(
             "role",
-             postgresql.ENUM(
-                "user", "assistant", "system", 
-                name="message_role", 
-                create_type=False
+            postgresql.ENUM(
+                "user", "assistant", "system", name="message_role", create_type=False
             ),
             nullable=False,
         ),

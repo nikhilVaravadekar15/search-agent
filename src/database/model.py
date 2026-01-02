@@ -4,11 +4,11 @@ from sqlalchemy import (
     JSON,
     TIMESTAMP,
     Column,
+    Enum,
     ForeignKey,
     Integer,
     String,
     Text,
-    Enum,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
