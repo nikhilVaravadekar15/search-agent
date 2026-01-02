@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+
+# Virtual environments
+bin  
+include  
+lib  
+lib64  
+pyvenv.cfg
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Documentation
+docs/
+*.md
+README*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+.env.*
