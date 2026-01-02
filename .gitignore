@@ -1,0 +1,14 @@
+bin  
+include  
+lib  
+lib64  
+pyvenv.cfg
+
+venv
+.venv 
+__pycache__
+
+.env
+
+/logs
+
