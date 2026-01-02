@@ -1,7 +1,7 @@
 import logging
-
 from urllib.parse import quote_plus
-from pydantic import field_validator, model_validator, computed_field
+
+from pydantic import computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,8 +36,19 @@ class Settings(BaseSettings):
 
     @computed_field
     def db_url(self) -> str:
+        """
+        use this for alembic
+        """
         password = quote_plus(self.DATABASE_PASSWORD)
         return f"postgresql+psycopg://{self.DATABASE_USERNAME}:{password}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+
+    @computed_field
+    def async_db_url(self) -> str:
+        """
+        use this for fastapi
+        """
+        password = quote_plus(self.DATABASE_PASSWORD)
+        return f"postgresql+asyncpg://{self.DATABASE_USERNAME}:{password}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
 
     @field_validator("DEBUG", mode="before")
     @classmethod
