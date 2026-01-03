@@ -26,7 +26,9 @@ class ApiResponseModel(JSONResponse):
         background: Optional[BackgroundTask] = None,
     ) -> None:
         # Build the complete response content here
-        content = ApiResponse(status_code=status_code, msg=msg, data=data).model_dump()
+        content = ApiResponse(status_code=status_code, msg=msg, data=data).model_dump(
+            mode="json"
+        )
 
         super().__init__(
             content=content,
