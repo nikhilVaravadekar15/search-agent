@@ -1,9 +1,10 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.commonlib import types as common_types
 from src.commonlib.config import settings
+from src.commonlib.constants import API_ERROR_MESSAGE
 from src.commonlib.logger import search_logger
 from src.health_check.router import router as health_check_router_v1
 from src.search.router import router as search_router_v1
@@ -47,9 +48,9 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 async def general_exception_handler(request: Request, exc: Exception):
     search_logger.error(f"Unhandled error: {exc}", exc_info=True)
     return common_types.ApiResponseModel(
-        status_code=exc.status_code,
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         msg="error",
-        data={"detail": exc.detail, "path": request.url.path},
+        data={"detail": API_ERROR_MESSAGE, "path": request.url.path},
     )
 
 
