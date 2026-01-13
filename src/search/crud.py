@@ -1,11 +1,11 @@
 from typing import List, Tuple
 from uuid import UUID
 
-from fastapi import HTTPException, status
 from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.database.connection import AsyncSessionLocal
 from src.database.model import ConversationThread, Message
 from src.search import types as search_types
 
@@ -109,42 +109,50 @@ async def list_threads(
     return total_count, threads
 
 
-# async def add_message_to_thread(
-#     db: AsyncSession,
-#     thread_id: UUID,
-#     role: str,
-#     content: str,
-#     error_message: str = None,
-#     sources: dict = None,
-# ) -> Message:
-#     """Add a new message to an existing thread"""
+async def create_message(
+    thread_id: UUID,
+    role: search_types.MessageRole,
+    query: str,
+) -> Message:
+    """Create a new message under thread with an initial user message"""
+    async with AsyncSessionLocal() as session:
+        try:
+            new_message = Message(conversation_id=thread_id, content=query, role=role)
+            session.add(new_message)
+            await session.commit()
+            await session.refresh(new_message)
+            return new_message
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
-#     # Verify thread exists
-#     thread_result = await db.execute(
-#         select(ConversationThread).where(ConversationThread.id == thread_id)
-#     )
-#     thread = thread_result.scalar_one_or_none()
 
-#     if not thread:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail=f"Thread {thread_id} not found",
-#         )
-
-#     # Create new message
-#     new_message = Message(
-#         conversation_id=thread_id,
-#         role=role,
-#         content=content,
-#         error_message=error_message,
-#         sources=sources,
-#     )
-#     db.add(new_message)
-
-#     # Update thread's updated_at timestamp
-#     thread.updated_at = func.now()
-
-#     await db.commit()
-#     await db.refresh(new_message)
-
-#     return new_message
+async def add_message_to_thread(
+    thread_id: UUID,
+    role: str,
+    content: str,
+    error_message: str = None,
+    sources: dict = None,
+) -> Message:
+    """Add a new message to an existing thread"""
+    async with AsyncSessionLocal() as session:
+        try:
+            # Create new message
+            new_message = Message(
+                conversation_id=thread_id,
+                role=role,
+                content=content,
+                error_message=error_message,
+                sources=sources,
+            )
+            session.add(new_message)
+            await session.commit()
+            await session.refresh(new_message)
+            return new_message
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()

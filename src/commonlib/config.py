@@ -1,5 +1,5 @@
 import logging
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urljoin
 
 from pydantic import computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,15 +10,17 @@ class Settings(BaseSettings):
     # debug
     DEBUG: bool = False
     LOGGING_LEVEL: int = logging.INFO
+    AGENT_NAME: str = "the_agent"
 
     # cors middleware
     FRONTEND_URL: str
 
     # Chat model
     API_KEY: str
-    LLM_MODEL: str = "openai/gpt-oss:20b"
-    MODEL_URL: str = "http://localhost:11434/v1"
+    LLM_MODEL: str = "openai/gpt-oss-20b"
+    MODEL_URL: str = "https://api.groq.com/openai/v1"
     MODEL_TEMPERATURE: float = 0
+    MAX_INPUT_TOKENS: int = 16384
     MAX_OUTPUT_TOKENS: int = 8192
 
     # Tools calling limit
