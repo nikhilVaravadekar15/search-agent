@@ -39,3 +39,53 @@ class ApiResponseModel(JSONResponse):
 
     def render(self, content: Any) -> bytes:
         return json.dumps(content).encode("utf-8")
+
+
+# crawl4ai
+class Crawl4AIMediaData(BaseModel):
+    src: str
+    alt: str
+    type: str
+    format: Optional[str] = None
+
+
+class Crawl4AIMedia(BaseModel):
+    images: List[Crawl4AIMediaData]
+    videos: List[Crawl4AIMediaData]
+    audios: List[Crawl4AIMediaData]
+
+
+class Crawl4AILinkData(BaseModel):
+    href: str
+    text: str
+    title: str
+    base_domain: str
+
+
+class Crawl4AILinks(BaseModel):
+    internal: List[Crawl4AILinkData]
+    external: List[Crawl4AILinkData]
+
+
+class Crawl4AIMarkdown(BaseModel):
+    markdown: Optional[str] = None
+    markdown_with_citations: Optional[str] = None
+    references_markdown: Optional[str] = None
+
+
+class Crawl4AIResponseResult(BaseModel):
+    url: str
+    html: Optional[str] = None
+    fit_html: Optional[str] = None
+    success: bool
+    cleaned_html: Optional[str] = None
+    media: Crawl4AIMedia
+    links: Crawl4AILinks
+    metadata: Optional[dict] = None
+    status_code: int
+    markdown: Crawl4AIMarkdown
+
+
+class Crawl4AIResponse(BaseModel):
+    success: bool
+    results: List[Crawl4AIResponseResult]

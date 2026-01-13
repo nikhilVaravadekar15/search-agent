@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     DATABASE_HOST: str
     DATABASE_PORT: int = 5432
 
+    # crawl4ai
+    CRAWL4AI_HOST: str
+
     @computed_field
     def db_url(self) -> str:
         """
@@ -49,6 +52,30 @@ class Settings(BaseSettings):
         """
         password = quote_plus(self.DATABASE_PASSWORD)
         return f"postgresql+asyncpg://{self.DATABASE_USERNAME}:{password}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+
+    @field_validator("CRAWL4AI_HOST", mode="after")
+    @classmethod
+    def validate_crawl4ai_url(cls, v: str) -> str:
+        """Validate CRAWL4AI_HOST and append /crawl endpoint"""
+        if not isinstance(v, str):
+            raise ValueError(f"CRAWL4AI_HOST must be a string, got {type(v)}")
+
+        v = v.strip()
+
+        # Validate URL scheme
+        if not v.startswith(("http://", "https://")):
+            raise ValueError(
+                f"CRAWL4AI_HOST must be a valid URL starting with http:// or https://"
+            )
+
+        # Ensure trailing slash before joining
+        if not v.endswith("/"):
+            v = f"{v}/"
+
+        # Use urljoin to properly append the endpoint
+        full_url = urljoin(v, "crawl")
+
+        return full_url
 
     @field_validator("DEBUG", mode="before")
     @classmethod

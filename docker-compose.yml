@@ -22,6 +22,14 @@ services:
       timeout: 5s
       start_period: 30s
 
+  crawl4ai:
+    image: unclecode/crawl4ai:latest
+    container_name: crawl4ai
+    ports:
+      - "11235:11235"
+    shm_size: 3g
+    restart: unless-stopped
+
 volumes:
   postgres_data:
     driver: local
