@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     DATABASE_HOST: str
     DATABASE_PORT: int = 5432
 
+    # scraperapi
+    SCRAPER_API_KEY: str
+    SCRAPER_API_URL: str = "https://api.scraperapi.com/structured/google/search/v1"
+
     # crawl4ai
     CRAWL4AI_HOST: str
 
