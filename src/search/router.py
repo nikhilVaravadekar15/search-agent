@@ -1,12 +1,13 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
 from src.commonlib import types as common_types
 from src.commonlib.constants import (
     API_ERROR_MESSAGE,
+    SEARCH_JOB_CANCEL_ERROR,
     THREAD_DELETED_ERROR,
     THREAD_NOT_FOUND_ERROR,
 )
@@ -14,7 +15,9 @@ from src.commonlib.logger import search_logger
 from src.database.connection import get_db
 from src.search import crud
 from src.search import types as search_types
+from src.search.agents.agent_manager import AgentManager
 
+agent_manager = AgentManager()
 router = APIRouter(prefix="/thread")
 
 
@@ -181,10 +184,26 @@ async def update_thread(
 
 @router.post("/{thread_id}/conversation/")
 async def conversation(
-    thread_id: UUID, body: search_types.APIRequest
+    request: Request, thread_id: UUID, body: search_types.APIRequest
 ) -> StreamingResponse:
     try:
-        pass
+        message = await crud.create_message(
+            thread_id=thread_id, role=search_types.MessageRole.USER, query=body.query
+        )
+        search_logger.info(
+            f"Created message message_id={message.id} under thread_id={thread_id}"
+        )
+        generator = agent_manager.run(
+            request=request,
+            thread_id=thread_id,
+            message_id=message.id,
+            query=body.query,
+        )
+        return StreamingResponse(
+            generator,
+            media_type="text/event-stream",
+        )
+
     except HTTPException as e:
         search_logger.error(f"Error: {str(e)}", exc_info=True)
         raise e
@@ -193,4 +212,44 @@ async def conversation(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=API_ERROR_MESSAGE,
+        )
+
+
+@router.post("/chat/stop-conversation")
+async def stop_streaming_job(
+    body: search_types.APICancelRequest,
+):
+    """
+    Endpoint to stop stream the output of a search job/message.
+    Args:
+        body (APICancelRequest): The request body containing the message id.
+    Raises:
+        HTTPException: If the job/message not found
+    """
+    try:
+        flag = await agent_manager.stop_stream_message(body.message_id)
+        if not flag:
+            search_logger.warning(
+                f"Failed to stop job (may have been already cancelled) job_id={body.message_id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Stream job already cancelled",
+            )
+
+        return common_types.ApiResponseModel(
+            status_code=status.HTTP_200_OK,
+            msg="success",
+            data={"message": SEARCH_JOB_CANCEL_ERROR},
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        search_logger.error(
+            f"Failed to stop in streaming job, error: {str(e)}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected error: {str(e)}",
         )

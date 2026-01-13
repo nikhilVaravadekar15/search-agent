@@ -20,8 +20,8 @@ class Message(BaseModel):
     conversation_id: UUID
     role: str
     content: str
-    error_message: str
-    sources: List[Dict]
+    error_message: Optional[str]
+    sources: Optional[list[dict]] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
@@ -30,6 +30,10 @@ class Message(BaseModel):
 
 class APIRequest(BaseModel):
     query: str
+
+
+class APICancelRequest(BaseModel):
+    message_id: UUID
 
 
 class MessageRole(StrEnum):
