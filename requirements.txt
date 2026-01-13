@@ -7,6 +7,7 @@ black==25.12.0
 certifi==2025.11.12
 charset-normalizer==3.4.4
 click==8.3.1
+distro==1.9.0
 dnspython==2.8.0
 email-validator==2.3.0
 fastapi==0.128.0
@@ -21,10 +22,12 @@ httpx==0.28.1
 idna==3.11
 isort==7.0.0
 Jinja2==3.1.6
+jiter==0.12.0
 jsonpatch==1.33
 jsonpointer==3.0.0
 langchain==1.2.0
 langchain-core==1.2.5
+langchain-openai==1.1.6
 langgraph==1.0.5
 langgraph-checkpoint==3.0.1
 langgraph-checkpoint-postgres==3.0.2
@@ -36,6 +39,7 @@ markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 mdurl==0.1.2
 mypy_extensions==1.1.0
+openai==2.14.0
 orjson==3.11.5
 ormsgpack==1.12.1
 packaging==25.0
@@ -53,6 +57,7 @@ python-dotenv==1.2.1
 python-multipart==0.0.21
 pytokens==0.3.0
 PyYAML==6.0.3
+regex==2025.11.3
 requests==2.32.5
 requests-toolbelt==1.0.0
 rich==14.2.0
@@ -60,9 +65,14 @@ rich-toolkit==0.17.1
 rignore==0.7.6
 sentry-sdk==2.48.0
 shellingham==1.5.4
+six==1.17.0
+sniffio==1.3.1
+soupsieve==2.8.1
 SQLAlchemy==2.0.45
 starlette==0.50.0
 tenacity==9.1.2
+tiktoken==0.12.0
+tqdm==4.67.1
 typer==0.21.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
