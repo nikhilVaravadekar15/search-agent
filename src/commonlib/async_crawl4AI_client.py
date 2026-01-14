@@ -8,8 +8,8 @@ from src.commonlib.types import Crawl4AIResponse
 
 class AsyncCrawl4AIClient:
     def __init__(self, timeout: float = 100):
-        self.__base_url = settings.CRAWL4AI_HOST
-        self.__timeout = timeout
+        self._base_url = settings.CRAWL4AI_HOST
+        self._timeout = timeout
 
     async def scrape(self, url: HttpUrl) -> Crawl4AIResponse:
         """
@@ -33,17 +33,17 @@ class AsyncCrawl4AIClient:
             },
         }
         try:
-            async with httpx.AsyncClient(timeout=self.__timeout) as client:
-                response = await client.post(self.__base_url, json=payload)
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.post(self._base_url, json=payload)
                 response.raise_for_status()
                 return Crawl4AIResponse(**response.json())
         except httpx.ConnectError as ce:
             search_logger.error(
-                f"Failed to connect to Crawl4AI server at {self.base_url}: {ce}"
+                f"Failed to connect to Crawl4AI server at {self._base_url}: {ce}"
             )
             raise ce
         except httpx.TimeoutException as te:
-            search_logger.error(f"Request to {url} timed out after {self.timeout}s")
+            search_logger.error(f"Request to {url} timed out after {self._timeout}s")
             raise te
         except httpx.HTTPStatusError as he:
             search_logger.error(f"crawl4ai scraping error: {str(he)}")
