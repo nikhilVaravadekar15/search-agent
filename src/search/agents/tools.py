@@ -114,6 +114,7 @@ async def internet_search(query: str, runtime: ToolRuntime[Dict, Any]) -> ToolMe
         results = []
         if isinstance(data, Dict):
             results = data.get("organic_results", [])
+
         for result in results:
             try:
                 url = HttpUrl(result["link"])
@@ -125,18 +126,20 @@ async def internet_search(query: str, runtime: ToolRuntime[Dict, Any]) -> ToolMe
                 continue
 
         formatted_results: List[str] = []
-        complete_sources: List[search_types.CompleteSource] = []
+        sources: List[search_types.Source] = []
         webpages: List[Optional[search_types.Source] | BaseException] = (
             await asyncio.gather(*tasks, return_exceptions=True)
         )
         for webpage in webpages:
             if webpage is not None and not isinstance(webpage, Exception):
-                complete_sources.append(webpage)
-                tsource = ""
+                tcontent = ""
                 for key, value in webpage:
                     if value:
-                        tsource += f"{key}: {value}, \n"
-                formatted_results.append(tsource)
+                        tcontent += f"{key}: {value}, \n"
+                formatted_results.append(tcontent)
+                sources.append(
+                    search_types.Source(**webpage.model_dump(exclude={"content"}))
+                )
 
         return ToolMessage(
             content=(
@@ -146,14 +149,7 @@ async def internet_search(query: str, runtime: ToolRuntime[Dict, Any]) -> ToolMe
             ),
             name="internet_search",
             tool_call_id=runtime.tool_call_id,
-            additional_kwargs={
-                "sources": [
-                    source.model_dump(
-                        mode="json", exclude={"content"}, exclude_none=True
-                    )
-                    for source in complete_sources
-                ]
-            },
+            additional_kwargs={"sources": sources},
         )
 
     except httpx.TimeoutException:
@@ -196,19 +192,17 @@ async def fetch_url_content(
     try:
         result = await scrape_webpage_content(url=url)
         if result:
-            tsource = ""
+            tcontent = ""
             for key, value in result:
                 if value:
-                    tsource += f"{key}: {value}, \n"
+                    tcontent += f"{key}: {value}, \n"
             return ToolMessage(
-                content=tsource,
+                content=tcontent,
                 name="fetch_url_content",
                 tool_call_id=runtime.tool_call_id,
                 additional_kwargs={
                     "sources": [
-                        result.model_dump(
-                            mode="json", exclude={"content"}, exclude_none=True
-                        )
+                        search_types.Source(**result.model_dump(exclude={"content"}))
                     ]
                 },
             )

@@ -47,7 +47,6 @@ class SseMode(StrEnum):
     THINKING = "thinking"
     RESPONSE = "response"
     ERROR = "error"
-    DONE = "done"
 
 
 class SseMessageType(StrEnum):

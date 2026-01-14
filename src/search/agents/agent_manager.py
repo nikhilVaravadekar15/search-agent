@@ -131,6 +131,7 @@ class AgentManager:
         """
         final_output = ""
         error_message = ""
+        sources: List[search_types.Source] = []
 
         try:
             search_logger.info(
@@ -183,7 +184,6 @@ class AgentManager:
 
                             if message_chunk.tool_calls:
                                 for tool_call in message_chunk.tool_calls:
-                                    print(tool_call)
                                     msg = f"Calling {tool_call['name']} tool"
                                     tool_info = {
                                         "id": tool_call["id"],
@@ -198,18 +198,10 @@ class AgentManager:
                                         message_id=message_id,
                                     )
                         elif isinstance(message_chunk, ToolMessage):
-                            print(message_chunk.model_dump())
-                            print(message_chunk)
-                            time.sleep(10)
                             tool_name = getattr(message_chunk, "name", "unknown")
                             tool_status = getattr(message_chunk, "status", "success")
 
-                            sources: List[search_types.Source] = []
-                            if tool_status == "success" and tool_name not in [
-                                # "write_todos",
-                                # "read_todos",
-                                "unknown",
-                            ]:
+                            if tool_status == "success":
                                 tool_sources = message_chunk.additional_kwargs
                                 if isinstance(metadata, dict):
                                     sources.extend(tool_sources.get("sources", []))
@@ -223,12 +215,6 @@ class AgentManager:
                             yield search_types.SseEvent(
                                 mode=search_types.SseMode.THINKING,
                                 message=msg,
-                                thread_id=thread_id,
-                                message_id=message_id,
-                            )
-                            yield search_types.SseEvent(
-                                mode=search_types.SseMode.METADATA,
-                                message=json.dumps(sources),
                                 thread_id=thread_id,
                                 message_id=message_id,
                             )
@@ -298,6 +284,14 @@ class AgentManager:
                 message_id=message_id,
             )
         finally:
+            yield search_types.SseEvent(
+                mode=search_types.SseMode.METADATA,
+                message=json.dumps(
+                    [source.model_dump(mode="json") for source in sources]
+                ),
+                thread_id=thread_id,
+                message_id=message_id,
+            )
             yield search_types.SseEvent(
                 mode=search_types.SseMode.RESPONSE,
                 message="[DONE]",
@@ -422,7 +416,8 @@ class AgentManager:
                     if chunk_type == search_types.SseMessageType.CHUNK:
                         # Accumulate output/sources if needed
                         if chunk_content.mode == search_types.SseMode.RESPONSE:
-                            final_output += chunk_content.message
+                            if chunk_content.message != "[DONE]":
+                                final_output += chunk_content.message
                         if chunk_content.mode == search_types.SseMode.METADATA:
                             try:
                                 metadata = json.loads(chunk_content.message)
