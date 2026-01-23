@@ -3,7 +3,8 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from langchain.messages import ToolMessage
-from langchain.tools import ToolRuntime, tool
+from langgraph.config import get_stream_writer
+from langchain.tools import ToolException, ToolRuntime, tool
 from pydantic import HttpUrl
 
 from src.commonlib.async_crawl4AI_client import AsyncCrawl4AIClient
@@ -23,8 +24,13 @@ async def scrape_webpage_content(url: HttpUrl) -> Optional[search_types.Complete
         timeout: Request timeout in seconds
 
     Returns:
-        Optional[search_types.Source]
+        Optional[search_types.CompleteSource]
+    Raises:
+        httpx.TimeoutException
+        httpx.HTTPError
+        Exception
     """
+
     try:
         try:
             c4ai_response: Crawl4AIResponse = await crawl4ai_client.scrape(url=url)
@@ -40,10 +46,7 @@ async def scrape_webpage_content(url: HttpUrl) -> Optional[search_types.Complete
 
         crawler_data = c4ai_response.results[0]
 
-        if (
-            crawler_data.markdown is not None
-            and crawler_data.markdown.markdown_with_citations is not None
-        ):
+        if crawler_data.markdown is not None and crawler_data.metadata is not None:
             metadata = crawler_data.metadata or {}
 
             title = (
@@ -59,11 +62,16 @@ async def scrape_webpage_content(url: HttpUrl) -> Optional[search_types.Complete
                 or metadata.get("twitter:description")
             )
 
+            markdown = (
+                crawler_data.markdown.markdown_with_citations
+                or crawler_data.markdown.markdown
+            )
+
             return search_types.CompleteSource(
                 title=title.strip(),
-                url=url,
-                description=meta_description,
-                content=crawler_data.markdown.markdown_with_citations,
+                link=url,
+                snippet=meta_description,
+                content=markdown,
             )
 
         return None
@@ -95,12 +103,27 @@ async def internet_search(query: str, runtime: ToolRuntime[Dict, Any]) -> ToolMe
             - Source references
         Returns empty result if no relevant documents found or query cannot be processed.
     """
+    writer = get_stream_writer()
 
-    params = {"api_key": settings.SCRAPER_API_KEY, "query": query}
+    payload = {
+        "q": query,
+        "gl": settings.SERPER_DEFAULT_COUNTRY,
+        "hl": settings.SERPER_DEFAULT_LANGUAGE,
+        "tbs": settings.SERPER_DEFAULT_DATE_RANGE,
+    }
+
+    headers = {
+        "X-API-KEY": settings.SERPER_API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    writer(search_types.CustomMessage(message=f"Searching for: {query}").model_dump_json())
 
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.get(settings.SCRAPER_API_URL, params=params)
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            response = await client.post(
+                settings.SERPER_API_URL, headers=headers, json=payload
+            )
             search_logger.info(
                 f"fetch web sources from internet with status_code: {response.status_code}"
             )
@@ -109,26 +132,40 @@ async def internet_search(query: str, runtime: ToolRuntime[Dict, Any]) -> ToolMe
 
             search_logger.info(data)
 
+        if isinstance(data, Dict):
+            results = data.get("organic", [])
+
+        if not results:
+            raise ToolException("Failed to get result from serper.api")
+
         urls: List[HttpUrl] = []
         tasks: List[asyncio.Task] = []
-        results = []
-        if isinstance(data, Dict):
-            results = data.get("organic_results", [])
-
-        for result in results:
-            try:
-                url = HttpUrl(result["link"])
-                urls.append(url)
-                search_logger.info(f"scraping webpage for url={url}")
-                tasks.append(scrape_webpage_content(url=url))
-            except Exception as e:
-                search_logger.warning(f"Scaping error: {str(e)}")
-                continue
-
         formatted_results: List[str] = []
         sources: List[search_types.Source] = []
+
+        writer(
+            search_types.CustomMessage(message="web results", dict=results).model_dump_json()
+        )
+        for i, result in enumerate(results):
+            psource = search_types.Source(**result)
+            sources.append(psource)
+            if i < settings.MAX_DOCUMENTS_STAGING_LIMIT:
+                try:
+                    url = HttpUrl(result["link"])
+                    urls.append(url)
+                    search_logger.info(f"scraping webpage for url={url}")
+                    tasks.append(scrape_webpage_content(url=url))
+                except Exception as e:
+                    search_logger.warning(f"Scaping error: {str(e)}")
+                    continue
+
         webpages: List[Optional[search_types.Source] | BaseException] = (
             await asyncio.gather(*tasks, return_exceptions=True)
+        )
+        writer(
+            search_types.CustomMessage(
+                message="Scraped the required sources"
+            ).model_dump_json()
         )
         for webpage in webpages:
             if webpage is not None and not isinstance(webpage, Exception):
@@ -137,9 +174,6 @@ async def internet_search(query: str, runtime: ToolRuntime[Dict, Any]) -> ToolMe
                     if value:
                         tcontent += f"{key}: {value}, \n"
                 formatted_results.append(tcontent)
-                sources.append(
-                    search_types.Source(**webpage.model_dump(exclude={"content"}))
-                )
 
         return ToolMessage(
             content=(
@@ -207,19 +241,22 @@ async def fetch_url_content(
                 },
             )
         raise Exception("failed to scrape")
-    except httpx.TimeoutException:
+    except httpx.TimeoutException as e:
+        search_logger.error(f"TimeoutException: {str(e)}", exc_info=True)
         return ToolMessage(
             content="Search request timed out. Please try again.",
             name="fetch_url_content",
             tool_call_id=runtime.tool_call_id,
         )
     except httpx.HTTPError as e:
+        search_logger.error(f"HTTPError: {str(e)}", exc_info=True)
         return ToolMessage(
             content=f"Search failed: {str(e)}",
             name="fetch_url_content",
             tool_call_id=runtime.tool_call_id,
         )
     except Exception as e:
+        search_logger.error(f"Exception: {str(e)}", exc_info=True)
         return ToolMessage(
             content=f"Unexpected error during search: {str(e)}",
             name="fetch_url_content",

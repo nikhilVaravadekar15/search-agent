@@ -24,10 +24,10 @@ class Settings(BaseSettings):
     MAX_OUTPUT_TOKENS: int = 8192
 
     # Tools calling limit
-    TOOL_CALLING_LIMIT: int = 32
+    TOOL_CALLING_LIMIT: int = 4
     SUMMERIZATION_MIDDLEWARE_LIMIT: float = 0.7
     # Data staging limits
-    MAX_DOCUMENTS_STAGING_LIMIT: int = 10
+    MAX_DOCUMENTS_STAGING_LIMIT: int = 5
 
     # database
     DATABASE_USERNAME: str
@@ -36,9 +36,13 @@ class Settings(BaseSettings):
     DATABASE_HOST: str
     DATABASE_PORT: int = 5432
 
-    # scraperapi
-    SCRAPER_API_KEY: str
-    SCRAPER_API_URL: str = "https://api.scraperapi.com/structured/google/search/v1"
+    # serper
+    SERPER_API_KEY: str
+    SERPER_API_URL: str = "https://google.serper.dev/search"
+    SERPER_DEFAULT_COUNTRY: str = "in"  # india
+    SERPER_DEFAULT_LANGUAGE: str = "en"  # english
+    SERPER_DEFAULT_DATE_RANGE: str = "qdr:w"  # past week
+    SERPER_API_RESULTS_MAX_LIMIT: int = 5
 
     # crawl4ai
     CRAWL4AI_HOST: str
