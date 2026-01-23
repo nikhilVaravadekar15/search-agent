@@ -44,8 +44,19 @@ class Message(Base):
     role = Column(
         Enum("user", "assistant", "system", name="message_role"), nullable=False
     )
+    parent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("messages.id", ondelete="CASCADE"),
+        nullable=True,
+        default=None,
+    )
     content = Column(Text, nullable=True)
     error_message = Column(String, nullable=True)
+    follow_context = Column(
+        JSON,
+        nullable=True,
+        default=None,
+    )
     sources = Column(JSON, nullable=True)
     created_at = Column(
         TIMESTAMP(timezone=True),
