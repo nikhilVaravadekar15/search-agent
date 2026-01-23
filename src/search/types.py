@@ -1,6 +1,6 @@
 import datetime
 from enum import StrEnum
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, HttpUrl
@@ -19,8 +19,10 @@ class Message(BaseModel):
     id: UUID
     conversation_id: UUID
     role: str
-    content: str
-    error_message: Optional[str]
+    parent_id: Optional[UUID] = None
+    content: Optional[str] = None
+    error_message: Optional[str] = None
+    follow_context: Optional[Dict] = None
     sources: Optional[list[dict]] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
@@ -28,12 +30,32 @@ class Message(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class FollowType(StrEnum):
+    REGENERATE = "regenerate"
+    FOLLOW_UP = "follow_up"
+
+
+class FollowContext(BaseModel):
+    type: FollowType
+    from_message_id: UUID
+    text: str
+    start: Optional[int] = None
+    end: Optional[int] = None
+    meta: Optional[Dict[str, Any]] = None
+
+
 class APIRequest(BaseModel):
     query: str
 
 
+class ConversationAPIRequest(APIRequest):
+    query: str
+    parent_message_id: Optional[UUID] = None
+    follow_context: Optional[FollowContext] = None
+
+
 class APICancelRequest(BaseModel):
-    message_id: UUID
+    track_id: UUID
 
 
 class MessageRole(StrEnum):
@@ -58,12 +80,17 @@ class SseMessageType(StrEnum):
 
 class Source(BaseModel):
     title: str
-    url: HttpUrl
-    description: Optional[str]
+    link: HttpUrl
+    snippet: Optional[str]
 
 
 class CompleteSource(Source):
     content: Optional[str]
+
+
+class CustomMessage(BaseModel):
+    message: Optional[str] = None
+    dict: Optional[Any] = None
 
 
 class SseEvent(BaseModel):
@@ -71,4 +98,5 @@ class SseEvent(BaseModel):
     message: str
     context: Optional[Dict] = None
     thread_id: UUID
+    track_id: UUID
     message_id: UUID

@@ -184,20 +184,35 @@ async def update_thread(
 
 @router.post("/{thread_id}/conversation/")
 async def conversation(
-    request: Request, thread_id: UUID, body: search_types.APIRequest
+    request: Request, thread_id: UUID, body: search_types.ConversationAPIRequest
 ) -> StreamingResponse:
     try:
-        message = await crud.create_message(
-            thread_id=thread_id, role=search_types.MessageRole.USER, query=body.query
+        user_message = await crud.create_message(
+            thread_id=thread_id,
+            role=search_types.MessageRole.USER,
+            parent_message_id=body.parent_message_id,  # previous ai message
+            query=body.query,
         )
         search_logger.info(
-            f"Created message message_id={message.id} under thread_id={thread_id}"
+            f"Created message {search_types.MessageRole.USER.value} message_id={user_message.id} under thread_id={thread_id}"
         )
+        ai_message = await crud.create_message(
+            thread_id=thread_id,
+            role=search_types.MessageRole.ASSISTANT,
+            parent_message_id=user_message.id,  # previous human message
+            query=None,
+        )
+        search_logger.info(
+            f"Created message {search_types.MessageRole.ASSISTANT.value} message_id={ai_message.id} under thread_id={thread_id}"
+        )
+
         generator = agent_manager.run(
             request=request,
-            thread_id=thread_id,
-            message_id=message.id,
             query=body.query,
+            thread_id=thread_id,
+            track_id=user_message.id,
+            message_id=ai_message.id,  # ai message for next user message
+            follow_context=body.follow_context,
         )
         return StreamingResponse(
             generator,
@@ -227,10 +242,10 @@ async def stop_streaming_job(
         HTTPException: If the job/message not found
     """
     try:
-        flag = await agent_manager.stop_stream_message(body.message_id)
+        flag = await agent_manager.stop_stream_message(body.track_id)
         if not flag:
             search_logger.warning(
-                f"Failed to stop job (may have been already cancelled) job_id={body.message_id}"
+                f"Failed to stop job (may have been already cancelled) track_id={body.track_id}"
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
