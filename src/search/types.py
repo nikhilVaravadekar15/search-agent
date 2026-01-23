@@ -90,7 +90,7 @@ class CompleteSource(Source):
 
 class CustomMessage(BaseModel):
     message: Optional[str] = None
-    dict: Optional[Any] = None
+    meta: Optional[Any] = None
 
 
 class SseEvent(BaseModel):

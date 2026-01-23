@@ -144,7 +144,7 @@ async def internet_search(query: str, runtime: ToolRuntime[Dict, Any]) -> ToolMe
         sources: List[search_types.Source] = []
 
         writer(
-            search_types.CustomMessage(message="web results", dict=results).model_dump_json()
+            search_types.CustomMessage(message="web results", meta=results).model_dump_json()
         )
         for i, result in enumerate(results):
             psource = search_types.Source(**result)
