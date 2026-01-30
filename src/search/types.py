@@ -1,9 +1,9 @@
 import datetime
 from enum import StrEnum
-from typing import Any, Dict, Optional
+from typing import Annotated, Any, Dict, Literal, Optional, Union
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 
 class ConversationThread(BaseModel):
@@ -30,18 +30,35 @@ class Message(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class FollowType(StrEnum):
+class FlowType(StrEnum):
+    NORMAL = "normal"
     REGENERATE = "regenerate"
     FOLLOW_UP = "follow_up"
 
 
-class FollowContext(BaseModel):
-    type: FollowType
-    from_message_id: UUID
-    text: str
+class BaseFlow(BaseModel):
     start: Optional[int] = None
     end: Optional[int] = None
-    meta: Optional[Dict[str, Any]] = None
+
+
+class NormalFlow(BaseFlow):
+    type: Literal[FlowType.NORMAL]
+
+
+class RegenerateFlow(BaseFlow):
+    type: Literal[FlowType.REGENERATE]
+    um_id: UUID
+
+
+class FollowUpFlow(BaseFlow):
+    type: Literal[FlowType.FOLLOW_UP]
+    text: str
+
+
+Flow = Annotated[
+    Union[NormalFlow, RegenerateFlow, FollowUpFlow],
+    Field(discriminator="type"),
+]
 
 
 class APIRequest(BaseModel):
@@ -49,9 +66,8 @@ class APIRequest(BaseModel):
 
 
 class ConversationAPIRequest(APIRequest):
-    query: str
-    parent_message_id: Optional[UUID] = None
-    follow_context: Optional[FollowContext] = None
+    parent_message_id: Optional[UUID]
+    context: Flow
 
 
 class APICancelRequest(BaseModel):
@@ -96,7 +112,8 @@ class CustomMessage(BaseModel):
 class SseEvent(BaseModel):
     mode: SseMode
     message: str
-    context: Optional[Dict] = None
+    meta: Optional[Dict] = None
     thread_id: UUID
     track_id: UUID
-    message_id: UUID
+    um_id: UUID
+    aim_id: UUID

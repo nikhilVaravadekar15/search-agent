@@ -187,20 +187,29 @@ async def conversation(
     request: Request, thread_id: UUID, body: search_types.ConversationAPIRequest
 ) -> StreamingResponse:
     try:
-        user_message = await crud.create_message(
-            thread_id=thread_id,
-            role=search_types.MessageRole.USER,
-            parent_message_id=body.parent_message_id,  # previous ai message
-            query=body.query,
-        )
-        search_logger.info(
-            f"Created message {search_types.MessageRole.USER.value} message_id={user_message.id} under thread_id={thread_id}"
-        )
+        user_message = None
+        if body.context.type != search_types.FlowType.REGENERATE.value:
+            user_message = await crud.create_message(
+                thread_id=thread_id,
+                role=search_types.MessageRole.USER,
+                parent_message_id=body.parent_message_id,  # previous ai message
+                query=body.query,
+                follow_context=body.context.model_dump(mode="json"),
+            )
+            search_logger.info(
+                f"Created message {search_types.MessageRole.USER.value} message_id={user_message.id} under thread_id={thread_id}"
+            )
+
         ai_message = await crud.create_message(
             thread_id=thread_id,
             role=search_types.MessageRole.ASSISTANT,
-            parent_message_id=user_message.id,  # previous human message
+            parent_message_id=(
+                user_message.id
+                if user_message and user_message.id
+                else body.context.um_id
+            ),  # previous human message
             query=None,
+            follow_context=body.context.model_dump(mode="json"),
         )
         search_logger.info(
             f"Created message {search_types.MessageRole.ASSISTANT.value} message_id={ai_message.id} under thread_id={thread_id}"
@@ -210,9 +219,18 @@ async def conversation(
             request=request,
             query=body.query,
             thread_id=thread_id,
-            track_id=user_message.id,
-            message_id=ai_message.id,  # ai message for next user message
-            follow_context=body.follow_context,
+            track_id=(
+                user_message.id
+                if user_message and user_message.id
+                else body.parent_message_id
+            ),
+            um_id=(
+                user_message.id
+                if user_message and user_message.id
+                else body.context.um_id
+            ),
+            aim_id=ai_message.id,  # ai message for next user message
+            context=body.context,
         )
         return StreamingResponse(
             generator,

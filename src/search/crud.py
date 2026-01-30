@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -117,7 +117,7 @@ async def create_message(
     role: search_types.MessageRole,
     parent_message_id: Optional[UUID],
     query: Optional[str] = None,
-    follow_context: Optional[search_types.FollowContext] = None,
+    follow_context: Optional[Dict] = None,
 ) -> Message:
     """Create a new message under thread with an initial user message"""
     async with AsyncSessionLocal() as session:
@@ -127,9 +127,7 @@ async def create_message(
                 content=query,
                 role=role,
                 parent_id=parent_message_id,
-                follow_context=(
-                    follow_context.model_dump(mode="json") if follow_context else None
-                ),
+                follow_context=(follow_context if follow_context else None),
             )
             session.add(new_message)
             await session.commit()
@@ -144,7 +142,7 @@ async def create_message(
 
 async def update_aimessage_in_thread(
     thread_id: UUID,
-    message_id: UUID,
+    aim_id: UUID,
     content: Optional[str] = None,
     error_message: Optional[str] = None,
     sources: Optional[dict] = None,
@@ -156,7 +154,7 @@ async def update_aimessage_in_thread(
             ai_message = (
                 await session.execute(
                     select(Message).where(
-                        Message.id == message_id, Message.conversation_id == thread_id
+                        Message.id == aim_id, Message.conversation_id == thread_id
                     )
                 )
             ).scalar_one_or_none()
