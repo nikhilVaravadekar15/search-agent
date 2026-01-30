@@ -3,8 +3,8 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from langchain.messages import ToolMessage
-from langgraph.config import get_stream_writer
 from langchain.tools import ToolException, ToolRuntime, tool
+from langgraph.config import get_stream_writer
 from pydantic import HttpUrl
 
 from src.commonlib.async_crawl4AI_client import AsyncCrawl4AIClient
@@ -117,7 +117,9 @@ async def internet_search(query: str, runtime: ToolRuntime[Dict, Any]) -> ToolMe
         "Content-Type": "application/json",
     }
 
-    writer(search_types.CustomMessage(message=f"Searching for: {query}").model_dump_json())
+    writer(
+        search_types.CustomMessage(message=f"Searching for: {query}").model_dump_json()
+    )
 
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
@@ -144,7 +146,9 @@ async def internet_search(query: str, runtime: ToolRuntime[Dict, Any]) -> ToolMe
         sources: List[search_types.Source] = []
 
         writer(
-            search_types.CustomMessage(message="web results", meta=results).model_dump_json()
+            search_types.CustomMessage(
+                message="web results", meta=results
+            ).model_dump_json()
         )
         for i, result in enumerate(results):
             psource = search_types.Source(**result)
