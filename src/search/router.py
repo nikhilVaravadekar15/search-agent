@@ -182,7 +182,7 @@ async def update_thread(
         )
 
 
-@router.post("/{thread_id}/conversation/")
+@router.post("/{thread_id}/chat/completions")
 async def conversation(
     request: Request, thread_id: UUID, body: search_types.ConversationAPIRequest
 ) -> StreamingResponse:
@@ -248,18 +248,30 @@ async def conversation(
         )
 
 
-@router.post("/chat/stop-conversation")
+@router.post("/{thread_id}/chat/completions/stop")
 async def stop_streaming_job(
+    thread_id: UUID,
     body: search_types.APICancelRequest,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Endpoint to stop stream the output of a search job/message.
     Args:
+        thread_id (UUID): thread id,
         body (APICancelRequest): The request body containing the message id.
     Raises:
         HTTPException: If the job/message not found
     """
     try:
+        db_message = await crud.get_message(
+            db=db, message_id=body.track_id, thread_id=thread_id
+        )
+        if not db_message:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Message not found",
+            )
+
         flag = await agent_manager.stop_stream_message(body.track_id)
         if not flag:
             search_logger.warning(

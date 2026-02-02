@@ -40,6 +40,21 @@ async def get_thread(
     ).scalar_one_or_none()
 
 
+async def get_message(
+    db: AsyncSession,
+    message_id: UUID,
+    thread_id: UUID,
+) -> Message:
+    # Verify message exists
+    return (
+        await db.execute(
+            select(Message).where(
+                Message.id == message_id, Message.conversation_id == thread_id
+            )
+        )
+    ).scalar_one_or_none()
+
+
 async def list_conversations(
     db: AsyncSession, thread_id: UUID, page: int, page_size: int
 ) -> Tuple[int, List[Message]]:
