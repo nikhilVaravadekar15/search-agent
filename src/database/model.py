@@ -39,7 +39,9 @@ class Message(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     conversation_id = Column(
-        UUID(as_uuid=True), ForeignKey("conversation_threads.id"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("conversation_threads.id", ondelete="CASCADE"),
+        nullable=False,
     )
     role = Column(
         Enum("user", "assistant", "system", name="message_role"), nullable=False
