@@ -15,9 +15,9 @@ from src.commonlib.logger import search_logger
 from src.database.connection import get_db
 from src.search import crud
 from src.search import types as search_types
-from src.search.agents.agent_manager import AgentManager
+from src.search.agents.stream_manager import StreamManager
 
-agent_manager = AgentManager()
+stream_manager = StreamManager()
 router = APIRouter(prefix="/thread")
 
 
@@ -215,7 +215,7 @@ async def conversation(
             f"Created message {search_types.MessageRole.ASSISTANT.value} message_id={ai_message.id} under thread_id={thread_id}"
         )
 
-        generator = agent_manager.run(
+        generator = stream_manager.run(
             request=request,
             query=body.query,
             thread_id=thread_id,
@@ -272,7 +272,7 @@ async def stop_streaming_job(
                 detail="Message not found",
             )
 
-        flag = await agent_manager.stop_stream_message(body.track_id)
+        flag = await stream_manager.stop_stream_message(body.track_id)
         if not flag:
             search_logger.warning(
                 f"Failed to stop job (may have been already cancelled) track_id={body.track_id}"
