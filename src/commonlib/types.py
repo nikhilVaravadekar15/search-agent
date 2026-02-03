@@ -44,7 +44,7 @@ class ApiResponseModel(JSONResponse):
 # crawl4ai
 class Crawl4AIMediaData(BaseModel):
     src: str
-    alt: str
+    alt: Optional[str] = None
     type: str
     format: Optional[str] = None
 

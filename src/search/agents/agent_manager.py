@@ -16,7 +16,11 @@ from langgraph.graph.state import CompiledStateGraph
 
 from src.commonlib.config import settings
 from src.commonlib.logger import search_logger
-from src.search.agents.prompts import RESEARCHER_INSTRUCTIONS
+from src.search import types as search_types
+from src.search.agents.prompts import (
+    QUESTION_ANSWERING_INSTRUCTIONS,
+    RESEARCHER_INSTRUCTIONS,
+)
 from src.search.agents.tools import internet_search, think_tool
 
 
@@ -40,7 +44,9 @@ class AgentManager:
 
         # Create async lock for async operations
         self._async_lock = asyncio.Lock()
-        self._search_agent: CompiledStateGraph[AgentState, Any] = None
+        self._agent_map: Dict[
+            search_types.AGENT_TYPES, CompiledStateGraph[AgentState, Any]
+        ] = {}
         self._checkpointer = InMemorySaver(
             serde=JsonPlusSerializer(pickle_fallback=True)
         )
@@ -57,21 +63,28 @@ class AgentManager:
         )
         self._initialized = True
 
-    def _create_agent(self) -> CompiledStateGraph[AgentState, Any]:
+    def _create_agent(
+        self, name: search_types.AGENT_TYPES
+    ) -> CompiledStateGraph[AgentState, Any]:
         """
         Create agent for search queries (with full tool calling support).
 
         This agent has access to all legal search tools and must use them
         to answer legal questions.
 
+        Args:
+            name (AGENT_TYPES): name of the agent
         Return:
             agent (CompiledStateGraph)
         """
-        tools = [think_tool, internet_search]
-        system_prompt = RESEARCHER_INSTRUCTIONS.format(date=date.today())
+        tools = [think_tool]
+        system_prompt = QUESTION_ANSWERING_INSTRUCTIONS.format(date=date.today())
+        if name == "search":
+            tools.append(internet_search)
+            system_prompt = RESEARCHER_INSTRUCTIONS.format(date=date.today())
 
         agent = create_agent(
-            name=settings.AGENT_NAME,
+            name=f"{name}_agent",
             model=self.llm,
             tools=tools,
             system_prompt=system_prompt,
@@ -89,18 +102,22 @@ class AgentManager:
 
         return agent
 
-    async def get_agent(self) -> CompiledStateGraph[AgentState, Any]:
+    async def get_agent(
+        self, name: search_types.AGENT_TYPES
+    ) -> CompiledStateGraph[AgentState, Any]:
         """
         Thread-safe lazy initialization of legal agent.
 
+        Args:
+            name (AGENT_TYPES): name of the agent
         Returns:
             agent (CompiledStateGraph[AgentState, Any])
         """
-        if self._search_agent is None:
+        if name not in self._agent_map or self._agent_map[name] is None:
             async with self._async_lock:
-                if self._search_agent is None:
-                    self._search_agent = self._create_agent()
-                    search_logger.info(f"Creating {settings.AGENT_NAME} agent")
+                if name not in self._agent_map or self._agent_map[name] is None:
+                    self._agent_map[name] = self._create_agent(name)
+                    search_logger.info(f"Creating {name} agent")
                 else:
-                    search_logger.info(f"{settings.AGENT_NAME} agent already created")
-        return self._search_agent
+                    search_logger.info(f"{name} agent already created")
+        return self._agent_map[name]

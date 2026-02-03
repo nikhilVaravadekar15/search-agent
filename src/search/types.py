@@ -30,6 +30,9 @@ class Message(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+AGENT_TYPES = Literal["search", "question_answering"]
+
+
 class FlowType(StrEnum):
     NORMAL = "normal"
     REGENERATE = "regenerate"
@@ -66,6 +69,7 @@ class APIRequest(BaseModel):
 
 
 class ConversationAPIRequest(APIRequest):
+    enable_search: bool = False
     parent_message_id: Optional[UUID]
     context: Flow
 

@@ -61,6 +61,7 @@ class StreamManager:
         track_id: UUID,
         um_id: Optional[UUID],
         aim_id: Optional[UUID],
+        enable_search: bool,
         context: search_types.Flow,
     ) -> AsyncGenerator[str, None]:
         """
@@ -71,6 +72,7 @@ class StreamManager:
             track_id (UUID): message to save conversation-thread details against
             um_id (Optional[UUID]): current user message id
             aim_id (Optional[UUID]): current ai message id (parent id for next uer message)
+            enable_search (bool): Whether search is enabled
             context: (search_types.Flow): Actual follow up context
         """
         final_output = ""
@@ -78,7 +80,11 @@ class StreamManager:
         sources: List[search_types.Source] = []
 
         try:
-            agent = await self.agent_manager.get_agent()
+            agent_name: search_types.AGENT_TYPES = "question_answering"
+            if enable_search:  # if search is enabled, use the search agent
+                agent_name = "search"
+
+            agent = await self.agent_manager.get_agent(name=agent_name)
             search_logger.info(
                 f"Created {agent.name} for thread_id={thread_id}, track_id={track_id} & Query={query}"
             )
@@ -290,6 +296,7 @@ class StreamManager:
         track_id: UUID,
         um_id: UUID,
         aim_id: Optional[UUID],
+        enable_search: bool,
         context: search_types.Flow,
     ):
         """
@@ -307,6 +314,7 @@ class StreamManager:
             track_id (UUID): Unique identifier to track and stop execution (user message id)
             um_id (UUID): Unique identifier of user message id
             aim_id (Optional[UUID]): Unique identifier of the previous parent message (ai message id)
+            enable_search (bool): Whether search is enabled
             context: (search_types.Flow): Actual follow up context
 
         Yields:
@@ -336,6 +344,7 @@ class StreamManager:
                     track_id=track_id_str,
                     um_id=um_id,
                     aim_id=aim_id,
+                    enable_search=enable_search,
                     context=context,
                 )
 

@@ -230,6 +230,7 @@ async def conversation(
                 else body.context.um_id
             ),
             aim_id=ai_message.id,  # ai message for next user message
+            enable_search=body.enable_search,
             context=body.context,
         )
         return StreamingResponse(
