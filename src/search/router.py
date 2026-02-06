@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
+from src.commonlib import infra_state
 from src.commonlib import types as common_types
 from src.commonlib.constants import (
     API_ERROR_MESSAGE,
@@ -15,9 +16,7 @@ from src.commonlib.logger import search_logger
 from src.database.connection import get_db
 from src.search import crud
 from src.search import types as search_types
-from src.search.agents.stream_manager import StreamManager
 
-stream_manager = StreamManager()
 router = APIRouter(prefix="/thread")
 
 
@@ -215,7 +214,7 @@ async def conversation(
             f"Created message {search_types.MessageRole.ASSISTANT.value} message_id={ai_message.id} under thread_id={thread_id}"
         )
 
-        generator = stream_manager.run(
+        generator = infra_state.stream_manager.run(
             request=request,
             query=body.query,
             thread_id=thread_id,
@@ -273,7 +272,7 @@ async def stop_streaming_job(
                 detail="Message not found",
             )
 
-        flag = await stream_manager.stop_stream_message(body.track_id)
+        flag = await infra_state.stream_manager.stop_stream_message(body.track_id)
         if not flag:
             search_logger.warning(
                 f"Failed to stop job (may have been already cancelled) track_id={body.track_id}"

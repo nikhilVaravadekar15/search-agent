@@ -10,10 +10,9 @@ from langchain.agents.middleware import (
     ToolCallLimitMiddleware,
 )
 from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph.state import CompiledStateGraph
 
+from src.commonlib import infra_state
 from src.commonlib.config import settings
 from src.commonlib.logger import search_logger
 from src.search import types as search_types
@@ -47,9 +46,7 @@ class AgentManager:
         self._agent_map: Dict[
             search_types.AGENT_TYPES, CompiledStateGraph[AgentState, Any]
         ] = {}
-        self._checkpointer = InMemorySaver(
-            serde=JsonPlusSerializer(pickle_fallback=True)
-        )
+        self._checkpointer = infra_state.checkpointer
         self.llm = ChatOpenAI(
             model=settings.LLM_MODEL,
             base_url=settings.MODEL_URL,

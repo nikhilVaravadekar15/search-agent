@@ -5,14 +5,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.commonlib import types as common_types
 from src.commonlib.config import settings
 from src.commonlib.constants import API_ERROR_MESSAGE
+from src.commonlib.lifespan import lifespan
 from src.commonlib.logger import search_logger
 from src.health_check.router import router as health_check_router_v1
 from src.search.router import router as search_router_v1
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL],
+    allow_origins=[settings.FRONTEND_URL or "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
