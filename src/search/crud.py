@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.commonlib.constants import API_ERROR_MESSAGE
+from src.commonlib import infra_state
 from src.database.connection import AsyncSessionLocal
 from src.database.model import ConversationThread, Message
 from src.search import types as search_types
@@ -91,6 +92,7 @@ async def delete_thread(db: AsyncSession, thread_id: UUID):
         sql_delete(ConversationThread).where(ConversationThread.id == thread_id)
     )
     await db.commit()
+    await infra_state.checkpointer.adelete_thread(thread_id)
 
 
 async def update_thread(
