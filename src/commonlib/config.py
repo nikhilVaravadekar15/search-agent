@@ -1,5 +1,5 @@
 import logging
-from urllib.parse import quote_plus, urljoin
+from urllib.parse import quote, quote_plus, urljoin
 
 from pydantic import computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     # crawl4ai
     CRAWL4AI_HOST: str
 
+    # langgraph postgres checkpointer
+    LANGGRAPH_AES_KEY: str
+
     @computed_field
     def db_url(self) -> str:
         """
@@ -62,6 +65,21 @@ class Settings(BaseSettings):
         """
         password = quote_plus(self.DATABASE_PASSWORD)
         return f"postgresql+asyncpg://{self.DATABASE_USERNAME}:{password}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+
+    @computed_field
+    def psycopg_dsn_checkpoint(self) -> str:
+        """
+        Pure psycopg DSN for LangGraph checkpointer to use in AsyncPostgresSaver
+        """
+        options = quote("-c search_path=checkpoint")
+        return (
+            f"postgres://{self.DATABASE_USERNAME}:"
+            f"{self.DATABASE_PASSWORD}@"
+            f"{self.DATABASE_HOST}:"
+            f"{self.DATABASE_PORT}/"
+            f"{self.DATABASE_NAME}"
+            f"?options={options}&sslmode=disable"
+        )
 
     @field_validator("CRAWL4AI_HOST", mode="after")
     @classmethod
