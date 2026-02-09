@@ -7,10 +7,11 @@ from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.commonlib.constants import API_ERROR_MESSAGE
 from src.commonlib import infra_state
+from src.commonlib.constants import API_ERROR_MESSAGE
+from src.commonlib.logger import search_logger
 from src.database.connection import AsyncSessionLocal
-from src.database.model import ConversationThread, Message
+from src.database.model import ConversationThread, Message, MessageFeedback
 from src.search import types as search_types
 
 
@@ -45,8 +46,20 @@ async def get_message(
     db: AsyncSession,
     message_id: UUID,
     thread_id: UUID,
+    is_assistant: bool = False,
 ) -> Message:
     # Verify message exists
+    if is_assistant:
+        (
+            await db.execute(
+                select(Message).where(
+                    Message.id == message_id,
+                    Message.conversation_id == thread_id,
+                    Message.role == search_types.MessageRole.ASSISTANT,
+                )
+            )
+        ).scalar_one_or_none()
+
     return (
         await db.execute(
             select(Message).where(
@@ -191,3 +204,89 @@ async def update_aimessage_in_thread(
             raise
         finally:
             await session.close()
+
+
+# feedback
+async def upsert_feedback(
+    db: AsyncSession,
+    thread_id: UUID,
+    message_id: UUID,
+    body: search_types.FeedbackRequest,
+) -> MessageFeedback:
+    """
+    Create or update semantic search feedback for a job by a user.
+
+    If feedback for the given (user_id, job_id) already exists, it is updated.
+    Otherwise, a new feedback record is created.
+
+    Args:
+        db (AsyncSession): Database session.
+        thread_id (UUID): ID of the conversation thread.
+        message_id (UUID): ID of the message.
+        body (FeedbackRequest): Feedback payload containing the reaction and optional text.
+
+    Returns:
+        SemanticSearchFeedback: The created or updated feedback record.
+    """
+    try:
+        # Check existing feedback
+        feedback = (
+            await db.execute(
+                select(MessageFeedback).where(
+                    MessageFeedback.thread_id == thread_id,
+                    MessageFeedback.message_id == message_id,
+                )
+            )
+        ).scalar_one_or_none()
+
+        # Upsert
+        if feedback:
+            feedback.reaction = body.reaction
+            feedback.feedback_text = body.feedback_text
+        else:
+            feedback = MessageFeedback(
+                thread_id=thread_id,
+                message_id=message_id,
+                reaction=body.reaction,
+                feedback_text=body.feedback_text,
+            )
+            db.add(feedback)
+        await db.commit()
+        await db.refresh(feedback)
+        return feedback
+    except Exception as e:
+        await db.rollback()
+        raise
+
+
+async def delete_feedback(
+    db: AsyncSession, feedback_id: UUID, thread_id: UUID, message_id: UUID
+) -> None:
+    """
+    Delete feedback for a message in a conversation thread.
+
+    Args:
+        db (Session): Database session.
+        feedback_id (UUID): feedback id
+        job_id (UUID): ID of the semantic search job being reviewed.
+        user_id (int): ID of the user submitting the feedback.
+
+    Returns:
+        None
+    """
+    try:
+        await db.execute(
+            sql_delete(MessageFeedback).where(
+                MessageFeedback.id == feedback_id,
+                MessageFeedback.thread_id == thread_id,
+                MessageFeedback.message_id == message_id,
+            )
+        )
+        await db.commit()
+
+    except Exception as e:
+        await db.rollback()
+        search_logger.error(
+            f"Error deleting semantic search feedback: {e}", exc_info=True
+        )
+        raise

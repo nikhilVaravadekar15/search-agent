@@ -33,6 +33,10 @@ class Message(BaseModel):
 AGENT_TYPES = Literal["search", "question_answering"]
 
 
+class MessageResponse(BaseModel):
+    message: str
+
+
 class FlowType(StrEnum):
     NORMAL = "normal"
     REGENERATE = "regenerate"
@@ -121,3 +125,21 @@ class SseEvent(BaseModel):
     track_id: UUID
     um_id: UUID
     aim_id: UUID
+
+
+class FeedbackReaction(StrEnum):
+    LIKE = "like"
+    DISLIKE = "dislike"
+
+
+class FeedbackRequest(BaseModel):
+    reaction: FeedbackReaction
+    feedback_text: Optional[str] = None
+
+
+class FeedbackUpsertResponse(MessageResponse):
+    id: UUID
+
+
+class FeedbackDeleteResponse(MessageResponse):
+    pass

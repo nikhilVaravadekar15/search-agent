@@ -126,7 +126,6 @@ FOLLOW_UP
 
 backend
 
-- [ ] add feedback apis
 - [ ] langfuse implementation
 - [ ] custon recursive sumerization middleware
 

@@ -1,3 +1,4 @@
+from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -16,6 +17,7 @@ from src.commonlib.logger import search_logger
 from src.database.connection import get_db
 from src.search import crud
 from src.search import types as search_types
+from src.search.agents.stream_manager import StreamManager
 
 router = APIRouter(prefix="/thread")
 
@@ -297,4 +299,79 @@ async def stop_streaming_job(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unexpected error: {str(e)}",
+        )
+
+
+# Feedback
+@router.post("/{thread_id}/messages/{message_id}/feedback")
+async def upsert_feedback(
+    thread_id: UUID,
+    message_id: UUID,
+    body: search_types.FeedbackRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Create or update feedback for a message in a conversation thread.
+    """
+    try:
+        message = await crud.get_message(
+            db=db, thread_id=thread_id, message_id=message_id, is_assistant=True
+        )
+        if not message:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Message not found"
+            )
+
+        feedback = await crud.upsert_feedback(
+            db=db, thread_id=thread_id, message_id=message_id, body=body
+        )
+
+        return common_types.ApiResponseModel(
+            status_code=status.HTTP_200_OK,
+            msg="success",
+            data=search_types.FeedbackUpsertResponse(
+                id=feedback.id, message="Thanks! Your feedback has been recorded."
+            ).model_dump(),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        search_logger.error(f"Error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=API_ERROR_MESSAGE,
+        )
+
+
+@router.delete("/{thread_id}/messages/{message_id}/feedback/{feedback_id}")
+async def delete_feedback(
+    thread_id: UUID,
+    message_id: UUID,
+    feedback_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete a feedback entry for a message in a conversation thread.
+    """
+    try:
+        await crud.delete_feedback(
+            db=db, feedback_id=feedback_id, thread_id=thread_id, message_id=message_id
+        )
+
+        return common_types.ApiResponseModel(
+            status_code=status.HTTP_200_OK,
+            msg="success",
+            data=search_types.FeedbackDeleteResponse(
+                message="feedback removed successfully"
+            ).model_dump(),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        search_logger.error(f"Error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=API_ERROR_MESSAGE,
         )
