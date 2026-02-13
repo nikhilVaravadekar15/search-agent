@@ -32,4 +32,4 @@ def setup_logger(name: str, level: int = settings.LOGGING_LEVEL) -> logging.Logg
     return logger
 
 
-search_logger: logging.Logger = setup_logger("search-bot")
+search_logger: logging.Logger = setup_logger("search-agent")
